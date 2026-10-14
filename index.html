@@ -1,0 +1,972 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>카지노 블랙잭 - 코인 시스템 & PC/모바일 UI</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', system-ui, -apple-system, sans-serif;
+            background-color: #0b0f19;
+            color: #f3f4f6;
+            min-height: 100vh;
+            margin: 0;
+            padding: 12px;
+            box-sizing: border-box;
+            user-select: none;
+        }
+
+        :root {
+            --felt-green: #075822;
+            --felt-dark: #033814;
+            --gold: #f59e0b;
+            --gold-light: #fbbf24;
+            --gold-dark: #b45309;
+        }
+
+        .casino-felt {
+            background: radial-gradient(circle, var(--felt-green) 0%, var(--felt-dark) 100%);
+            box-shadow: inset 0 0 80px rgba(0, 0, 0, 0.8), 0 12px 35px rgba(0,0,0,0.8);
+            border: 8px solid #422006;
+        }
+
+        .playing-card {
+            background: #ffffff;
+            color: #111827;
+            width: 46px;
+            height: 68px;
+            border-radius: 6px;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            padding: 4px 5px;
+            font-weight: 800;
+            font-size: 0.85rem;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.4);
+            position: relative;
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+        }
+
+        .playing-card.red {
+            color: #dc2626;
+        }
+
+        .playing-card.back {
+            background: linear-gradient(135deg, #1e3a8a 0%, #1e1b4b 100%);
+            border: 2px solid #ffffff;
+            color: #ffffff;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .bet-chip-badge {
+            background: radial-gradient(circle, #fef08a 0%, #f59e0b 70%, #b45309 100%);
+            color: #451a03;
+            font-weight: 900;
+            border: 2px dashed #78350f;
+            border-radius: 9999px;
+            padding: 2px 8px;
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.5);
+            font-size: 0.75rem;
+        }
+
+        .active-turn {
+            border-color: var(--gold-light) !important;
+            box-shadow: 0 0 18px rgba(245, 158, 11, 0.7), inset 0 0 10px rgba(245, 158, 11, 0.2);
+            background: rgba(0, 0, 0, 0.65) !important;
+        }
+
+        .coin-chip {
+            background: radial-gradient(circle, #fef08a 0%, var(--gold) 70%, var(--gold-dark) 100%);
+            color: #451a03;
+            font-weight: 900;
+            border: 2px dashed #78350f;
+            border-radius: 50%;
+            box-shadow: 0 3px 6px rgba(0,0,0,0.5);
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .custom-scroll::-webkit-scrollbar {
+            width: 6px;
+        }
+        .custom-scroll::-webkit-scrollbar-thumb {
+            background: rgba(245, 158, 11, 0.4);
+            border-radius: 4px;
+        }
+
+        .mobile-layout .players-grid {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            max-height: 48vh;
+            overflow-y: auto;
+            padding-right: 4px;
+        }
+
+        .pc-layout .players-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 12px;
+        }
+
+        .btn-casino {
+            transition: all 0.15s ease-in-out;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+        }
+        .btn-casino:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 12px rgba(0,0,0,0.4);
+        }
+        .btn-casino:active:not(:disabled) {
+            transform: translateY(1px);
+            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+        }
+    </style>
+</head>
+<body class="flex flex-col items-center justify-start min-h-screen">
+
+    <header class="text-center mb-3">
+        <h1 class="text-2xl sm:text-3xl font-extrabold text-amber-400 tracking-wide flex items-center justify-center gap-2">
+            <span>🃏</span> 카지노 블랙잭 <span>🪙</span>
+        </h1>
+    </header>
+
+    <!-- Game Over Modal -->
+    <div id="gameover-modal" class="hidden fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+        <div class="bg-slate-900 border-2 border-amber-500 rounded-2xl p-6 sm:p-8 max-w-sm w-full text-center shadow-2xl flex flex-col items-center gap-4">
+            <div class="text-5xl">💸</div>
+            <h2 class="text-2xl font-extrabold text-red-500">GAME OVER</h2>
+            <p id="gameover-msg" class="text-gray-200 font-semibold text-sm">
+                플레이어의 코인이 0개가 되었습니다!
+            </p>
+            <p class="text-xs text-amber-400">다시 20 코인으로 충전하여 게임을 계속 진행하시겠습니까?</p>
+            <div class="flex gap-3 w-full mt-2">
+                <button onclick="restartPlayerCoins()" class="btn-casino flex-1 bg-amber-500 hover:bg-amber-400 text-slate-950 font-extrabold text-sm py-2.5 rounded-xl border border-amber-300">
+                    🔄 다시 시작 (20 코인)
+                </button>
+                <button onclick="goHome()" class="btn-casino flex-1 bg-slate-800 hover:bg-slate-700 text-gray-300 font-bold text-sm py-2.5 rounded-xl border border-slate-600">
+                    🏠 메인 화면
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Container -->
+    <main class="w-full max-w-5xl">
+
+        <!-- SETUP SCREEN -->
+        <div id="game-setup" class="casino-felt rounded-2xl p-6 sm:p-10 text-center flex flex-col items-center gap-6 border-amber-900">
+            <!-- Mode Selector -->
+            <div class="w-full max-w-md bg-black/40 p-5 rounded-xl border border-amber-500/30">
+                <h3 class="text-amber-400 font-bold text-base sm:text-lg mb-3 flex items-center justify-center gap-2">
+                    <span>📱</span> 1. UI 화면 모드를 선택하세요
+                </h3>
+                <div class="grid grid-cols-2 gap-3">
+                    <button id="btn-mode-pc" onclick="setUiMode('pc')" class="btn-casino py-3 px-4 rounded-lg font-bold text-sm bg-amber-500 text-slate-950 border-2 border-amber-300">
+                        💻 PC 모드 (가로형)
+                    </button>
+                    <button id="btn-mode-mobile" onclick="setUiMode('mobile')" class="btn-casino py-3 px-4 rounded-lg font-bold text-sm bg-slate-800 text-gray-300 border border-slate-700">
+                        📱 안드로이드 모드 (세로형)
+                    </button>
+                </div>
+            </div>
+
+            <!-- Rule Mode Selector -->
+            <div class="w-full max-w-md bg-black/40 p-5 rounded-xl border border-amber-500/30">
+                <h3 class="text-amber-400 font-bold text-base sm:text-lg mb-3 flex items-center justify-center gap-2">
+                    <span>⚙️</span> 2. 게임 방식을 선택하세요
+                </h3>
+                <div class="grid grid-cols-2 gap-3">
+                    <button id="btn-rule-bet" onclick="setGameRuleMode('bet')" class="btn-casino py-3 px-3 rounded-lg font-bold text-xs sm:text-sm bg-amber-500 text-slate-950 border-2 border-amber-300">
+                        🪙 코인 베팅 모드
+                    </button>
+                    <button id="btn-rule-free" onclick="setGameRuleMode('free')" class="btn-casino py-3 px-3 rounded-lg font-bold text-xs sm:text-sm bg-slate-800 text-gray-300 border border-slate-700">
+                        🃏 베팅 없는 자유 모드
+                    </button>
+                </div>
+            </div>
+
+            <!-- Player Count Selector -->
+            <div class="w-full max-w-md bg-black/40 p-5 rounded-xl border border-amber-500/30">
+                <h3 class="text-amber-400 font-bold text-base sm:text-lg mb-3 flex items-center justify-center gap-2">
+                    <span>👥</span> 3. 플레이어 수를 선택하세요
+                </h3>
+                <div class="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-3">
+                    <button onclick="startGame(1)" class="btn-casino py-3 px-2 bg-gradient-to-b from-amber-400 to-amber-600 text-slate-950 font-black text-sm rounded-lg border border-amber-200">1인</button>
+                    <button onclick="startGame(2)" class="btn-casino py-3 px-2 bg-gradient-to-b from-amber-400 to-amber-600 text-slate-950 font-black text-sm rounded-lg border border-amber-200">2인</button>
+                    <button onclick="startGame(3)" class="btn-casino py-3 px-2 bg-gradient-to-b from-amber-400 to-amber-600 text-slate-950 font-black text-sm rounded-lg border border-amber-200">3인</button>
+                    <button onclick="startGame(4)" class="btn-casino py-3 px-2 bg-gradient-to-b from-amber-400 to-amber-600 text-slate-950 font-black text-sm rounded-lg border border-amber-200">4인</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- MAIN GAME BOARD -->
+        <div id="game-board" class="hidden casino-felt rounded-2xl p-3 sm:p-6 pc-layout flex flex-col gap-4">
+            
+            <div class="flex justify-between items-center bg-black/50 px-4 py-2 rounded-lg text-xs sm:text-sm border border-amber-500/20">
+                <div class="flex items-center gap-3 font-semibold">
+                    <span id="current-mode-label" class="text-amber-300">현재 모드: PC UI</span>
+                    <span class="text-amber-500/50">|</span>
+                    <span id="current-rule-label" class="text-emerald-400">룰: 코인 베팅</span>
+                </div>
+                <button onclick="toggleUiMode()" class="btn-casino bg-slate-800 hover:bg-slate-700 text-amber-400 border border-amber-500/40 px-3 py-1 rounded-md text-xs font-bold">
+                    🔄 UI 전환
+                </button>
+            </div>
+
+            <div class="bg-black/40 border border-white/10 rounded-xl p-3 sm:p-4 text-center flex flex-col items-center">
+                <div class="flex items-center justify-center gap-2 mb-2">
+                    <span class="text-amber-400 font-bold text-sm sm:text-base">🎩 딜러 Table</span>
+                    <span id="dealer-score" class="bg-slate-900/80 text-amber-300 text-xs px-2.5 py-1 rounded-md border border-amber-500/30 font-bold">합계: ?</span>
+                </div>
+                <div id="dealer-cards" class="flex justify-center items-center gap-2 min-h-[72px] my-1"></div>
+            </div>
+
+            <div id="players-grid" class="players-grid custom-scroll"></div>
+
+            <div class="bg-black/70 border border-amber-500/40 rounded-xl p-3 text-center shadow-lg">
+                <div id="message-box" class="text-amber-300 font-bold text-sm sm:text-base min-h-[24px]">
+                    게임을 준비 중입니다...
+                </div>
+            </div>
+
+            <!-- BETTING PANEL -->
+            <div id="betting-panel" class="hidden bg-black/60 border border-amber-500/30 rounded-xl p-4 text-center flex flex-col gap-3">
+                <div id="betting-prompt" class="text-amber-300 font-bold text-sm sm:text-base">
+                    플레이어 1의 배팅 차례입니다.
+                </div>
+                <div class="flex flex-wrap items-center justify-center gap-2 sm:gap-3">
+                    <button onclick="addBet(1)" class="btn-casino coin-chip w-10 h-10 text-xs">+1🪙</button>
+                    <button onclick="addBet(5)" class="btn-casino coin-chip w-11 h-11 text-sm">+5🪙</button>
+                    <button onclick="addBet(10)" class="btn-casino coin-chip w-12 h-12 text-sm">+10🪙</button>
+                    <button onclick="resetCurrentBet()" class="btn-casino bg-red-800 hover:bg-red-700 text-white font-bold text-xs px-3 py-2 rounded-lg border border-red-500">
+                        초기화
+                    </button>
+                    <button onclick="confirmBet()" class="btn-casino bg-amber-500 hover:bg-amber-400 text-slate-950 font-extrabold text-sm px-5 py-2.5 rounded-lg border border-amber-300">
+                        배팅 확정 (총 <span id="current-bet-display">1</span> 코인)
+                    </button>
+                </div>
+            </div>
+
+            <!-- ACTION CONTROL PANEL -->
+            <div id="action-panel" class="hidden bg-black/60 border border-amber-500/30 rounded-xl p-3 text-center">
+                <div id="action-buttons" class="hidden flex flex-wrap justify-center gap-2 sm:gap-3">
+                    <button onclick="playerHit()" class="btn-casino bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs sm:text-sm px-4 py-2.5 rounded-lg border border-emerald-400">
+                        👊 Hit (카드 받기)
+                    </button>
+                    <button onclick="playerStand()" class="btn-casino bg-slate-700 hover:bg-slate-600 text-white font-bold text-xs sm:text-sm px-4 py-2.5 rounded-lg border border-slate-400">
+                        ✋ Stay (멈추기)
+                    </button>
+                    <button id="btn-double" onclick="playerDouble()" class="btn-casino bg-amber-600 hover:bg-amber-500 text-white font-bold text-xs sm:text-sm px-4 py-2.5 rounded-lg border border-amber-400">
+                        ⚡ Double Down (배팅 2배)
+                    </button>
+                    <button id="btn-split" onclick="playerSplit()" class="btn-casino bg-purple-700 hover:bg-purple-600 text-white font-bold text-xs sm:text-sm px-4 py-2.5 rounded-lg border border-purple-400">
+                        ✂️ Split (패 나누기)
+                    </button>
+                    <button id="btn-insurance" onclick="playerInsurance()" class="btn-casino bg-blue-700 hover:bg-blue-600 text-white font-bold text-xs sm:text-sm px-4 py-2.5 rounded-lg border border-blue-400">
+                        🛡️ Insurance (보험)
+                    </button>
+                </div>
+
+                <div id="ace-buttons" class="hidden flex flex-wrap justify-center gap-3">
+                    <button onclick="chooseAce(1)" class="btn-casino bg-amber-500 hover:bg-amber-400 text-slate-950 font-extrabold text-sm px-5 py-2.5 rounded-lg border border-amber-200">
+                        A를 '1'로 선택
+                    </button>
+                    <button onclick="chooseAce(11)" class="btn-casino bg-amber-500 hover:bg-amber-400 text-slate-950 font-extrabold text-sm px-5 py-2.5 rounded-lg border border-amber-200">
+                        A를 '11'로 선택
+                    </button>
+                </div>
+            </div>
+
+            <!-- ROUND END OPTIONS -->
+            <div id="next-round-container" class="hidden bg-black/60 border border-amber-500/30 rounded-xl p-3 text-center flex flex-wrap justify-center gap-3">
+                <button onclick="startBettingPhase()" class="btn-casino bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-slate-950 font-extrabold text-sm px-6 py-2.5 rounded-lg border border-amber-300">
+                    ➡️ 다음 라운드 진행
+                </button>
+                <button onclick="goHome()" class="btn-casino bg-slate-800 hover:bg-slate-700 text-gray-300 font-bold text-sm px-5 py-2.5 rounded-lg border border-slate-600">
+                    🏠 메인 화면으로
+                </button>
+            </div>
+
+        </div>
+    </main>
+
+    <script>
+        // State Variables
+        let deck = [];
+        let numPlayers = 1;
+        let players = [];
+        let dealerHand = [];
+        let currentBettingPlayerIndex = 0;
+        let tempBet = 1;
+        let currentTurnPlayerIndex = 0;
+        let currentHandIndex = 0;
+        let isGameOver = false;
+        let selectedUiMode = 'pc';
+        let gameRuleMode = 'bet'; // 'bet' or 'free'
+        let bankruptPlayerIndex = -1;
+
+        // UI & Rule Mode Setup
+        function setUiMode(mode) {
+            selectedUiMode = mode;
+            const pcBtn = document.getElementById('btn-mode-pc');
+            const mobileBtn = document.getElementById('btn-mode-mobile');
+
+            if (mode === 'pc') {
+                pcBtn.className = "btn-casino py-3 px-4 rounded-lg font-bold text-sm bg-amber-500 text-slate-950 border-2 border-amber-300";
+                mobileBtn.className = "btn-casino py-3 px-4 rounded-lg font-bold text-sm bg-slate-800 text-gray-300 border border-slate-700";
+            } else {
+                mobileBtn.className = "btn-casino py-3 px-4 rounded-lg font-bold text-sm bg-amber-500 text-slate-950 border-2 border-amber-300";
+                pcBtn.className = "btn-casino py-3 px-4 rounded-lg font-bold text-sm bg-slate-800 text-gray-300 border border-slate-700";
+            }
+        }
+
+        function setGameRuleMode(rule) {
+            gameRuleMode = rule;
+            const betBtn = document.getElementById('btn-rule-bet');
+            const freeBtn = document.getElementById('btn-rule-free');
+
+            if (rule === 'bet') {
+                betBtn.className = "btn-casino py-3 px-3 rounded-lg font-bold text-xs sm:text-sm bg-amber-500 text-slate-950 border-2 border-amber-300";
+                freeBtn.className = "btn-casino py-3 px-3 rounded-lg font-bold text-xs sm:text-sm bg-slate-800 text-gray-300 border border-slate-700";
+            } else {
+                freeBtn.className = "btn-casino py-3 px-3 rounded-lg font-bold text-xs sm:text-sm bg-amber-500 text-slate-950 border-2 border-amber-300";
+                betBtn.className = "btn-casino py-3 px-3 rounded-lg font-bold text-xs sm:text-sm bg-slate-800 text-gray-300 border border-slate-700";
+            }
+        }
+
+        function toggleUiMode() {
+            selectedUiMode = (selectedUiMode === 'pc') ? 'mobile' : 'pc';
+            applyUiLayoutClass();
+        }
+
+        function applyUiLayoutClass() {
+            const board = document.getElementById('game-board');
+            const modeLabel = document.getElementById('current-mode-label');
+            const ruleLabel = document.getElementById('current-rule-label');
+
+            if (selectedUiMode === 'mobile') {
+                board.classList.remove('pc-layout');
+                board.classList.add('mobile-layout');
+                modeLabel.innerText = "현재 모드: 모바일 UI";
+            } else {
+                board.classList.remove('mobile-layout');
+                board.classList.add('pc-layout');
+                modeLabel.innerText = "현재 모드: PC UI";
+            }
+
+            ruleLabel.innerText = gameRuleMode === 'bet' ? "룰: 코인 베팅" : "룰: 베팅 없음(자유)";
+            renderBoard(!isGameOver);
+        }
+
+        // Deck Creation & Shuffling with 4-Card Burning
+        function createDeck() {
+            const suits = ['♠', '♣', '♥', '◆'];
+            const ranks = ['2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K', 'A'];
+            deck = [];
+            for (let suit of suits) {
+                for (let rank of ranks) {
+                    deck.push({ suit, rank });
+                }
+            }
+            for (let i = deck.length - 1; i > 0; i--) {
+                let j = Math.floor(Math.random() * (i + 1));
+                [deck[i], deck[j]] = [deck[j], deck[i]];
+            }
+            for (let i = 0; i < 4; i++) {
+                deck.pop();
+            }
+        }
+
+        function calculateScore(hand) {
+            let score = 0;
+            let aceCount = 0;
+
+            hand.forEach(card => {
+                if (['J', 'Q', 'K'].includes(card.rank)) {
+                    score += 10;
+                } else if (card.rank === 'A') {
+                    if (card.assignedAceValue !== undefined) {
+                        score += card.assignedAceValue;
+                    } else {
+                        score += 11;
+                        aceCount++;
+                    }
+                } else {
+                    score += parseInt(card.rank);
+                }
+            });
+
+            while (score > 21 && aceCount > 0) {
+                score -= 10;
+                aceCount--;
+            }
+            return score;
+        }
+
+        function getCardValueCheck(card) {
+            if (['J', 'Q', 'K'].includes(card.rank)) return 10;
+            if (card.rank === 'A') return 11;
+            return parseInt(card.rank);
+        }
+
+        // Initialize Game Session
+        function startGame(count) {
+            numPlayers = count;
+            players = [];
+            
+            for (let i = 0; i < numPlayers; i++) {
+                players.push({
+                    name: `플레이어 ${i + 1}`,
+                    coins: 20,
+                    bets: [1],
+                    hands: [[]],
+                    isDoubled: [false],
+                    status: ['playing'],
+                    insurance: 0
+                });
+            }
+
+            document.getElementById('game-setup').classList.add('hidden');
+            document.getElementById('game-board').classList.remove('hidden');
+            document.getElementById('gameover-modal').classList.add('hidden');
+            applyUiLayoutClass();
+            startBettingPhase();
+        }
+
+        function goHome() {
+            document.getElementById('gameover-modal').classList.add('hidden');
+            document.getElementById('game-board').classList.add('hidden');
+            document.getElementById('game-setup').classList.remove('hidden');
+        }
+
+        // Phase 1: Betting Phase
+        function startBettingPhase() {
+            createDeck();
+            dealerHand = [];
+            isGameOver = false;
+
+            if (gameRuleMode === 'free') {
+                players.forEach(p => {
+                    p.bets = [0];
+                    p.hands = [[]];
+                    p.isDoubled = [false];
+                    p.status = ['playing'];
+                    p.insurance = 0;
+                });
+                document.getElementById('next-round-container').classList.add('hidden');
+                document.getElementById('betting-panel').classList.add('hidden');
+                startDealPhase();
+                return;
+            }
+
+            for (let i = 0; i < players.length; i++) {
+                if (players[i].coins <= 0) {
+                    triggerGameOver(i);
+                    return;
+                }
+            }
+
+            currentBettingPlayerIndex = 0;
+            document.getElementById('next-round-container').classList.add('hidden');
+            document.getElementById('action-panel').classList.add('hidden');
+            document.getElementById('betting-panel').classList.remove('hidden');
+
+            setupNextPlayerBetting();
+        }
+
+        function triggerGameOver(playerIdx) {
+            bankruptPlayerIndex = playerIdx;
+            const p = players[playerIdx];
+            document.getElementById('gameover-msg').innerText = `[${p.name}] 님의 코인이 모두 소진되어 Game Over 되었습니다!`;
+            document.getElementById('gameover-modal').classList.remove('hidden');
+        }
+
+        function restartPlayerCoins() {
+            // 파산한 플레이어 및 기존 모든 플레이어에게 20코인을 추가/충전
+            players.forEach(p => {
+                if (p.coins <= 0) {
+                    p.coins = 20;
+                } else {
+                    p.coins += 20;
+                }
+            });
+            document.getElementById('gameover-modal').classList.add('hidden');
+            startBettingPhase();
+        }
+
+        function setupNextPlayerBetting() {
+            if (currentBettingPlayerIndex >= players.length) {
+                document.getElementById('betting-panel').classList.add('hidden');
+                startDealPhase();
+                return;
+            }
+
+            const p = players[currentBettingPlayerIndex];
+            tempBet = 0;
+            updateBetDisplay();
+        }
+
+        function addBet(amount) {
+            const p = players[currentBettingPlayerIndex];
+            if (tempBet + amount <= p.coins) {
+                tempBet += amount;
+            } else {
+                tempBet = p.coins;
+            }
+            updateBetDisplay();
+        }
+
+        function resetCurrentBet() {
+            tempBet = 0;
+            updateBetDisplay();
+        }
+
+        function updateBetDisplay() {
+            const p = players[currentBettingPlayerIndex];
+            document.getElementById('betting-prompt').innerHTML = 
+                `🪙 [${p.name}] 배팅 선택 (보유: <span class="text-amber-300 font-extrabold">${p.coins}</span> 코인)`;
+            document.getElementById('current-bet-display').innerText = tempBet;
+
+            const confirmBtn = document.querySelector('#betting-panel button[onclick="confirmBet()"]');
+            if (confirmBtn) {
+                if (tempBet <= 0) {
+                    confirmBtn.disabled = true;
+                    confirmBtn.classList.add('opacity-50', 'cursor-not-allowed');
+                } else {
+                    confirmBtn.disabled = false;
+                    confirmBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+                }
+            }
+
+            renderBoard(true);
+        }
+
+        function confirmBet() {
+            if (tempBet <= 0) return;
+
+            const p = players[currentBettingPlayerIndex];
+            p.bets = [tempBet];
+            p.coins -= tempBet;
+            p.hands = [[]];
+            p.isDoubled = [false];
+            p.status = ['playing'];
+            p.insurance = 0;
+
+            currentBettingPlayerIndex++;
+            setupNextPlayerBetting();
+        }
+
+        // Phase 2: Deal Phase
+        function startDealPhase() {
+            dealerHand = [deck.pop(), deck.pop()];
+
+            players.forEach(p => {
+                p.hands[0] = [deck.pop(), deck.pop()];
+                p.insurance = 0;
+            });
+
+            currentTurnPlayerIndex = 0;
+            currentHandIndex = 0;
+
+            document.getElementById('action-panel').classList.remove('hidden');
+            renderBoard(true);
+            checkAceRequirementOrProceed();
+        }
+
+        function playerInsurance() {
+            const p = players[currentTurnPlayerIndex];
+            const halfBet = Math.floor(p.bets[currentHandIndex] / 2) || 1;
+            
+            if (gameRuleMode === 'bet' && p.coins >= halfBet) {
+                p.coins -= halfBet;
+                p.insurance = halfBet;
+                document.getElementById('message-box').innerText = `[${p.name}] Insurance 가입 완료! (보험금: ${halfBet}🪙)`;
+            } else if (gameRuleMode === 'free') {
+                p.insurance = 1;
+                document.getElementById('message-box').innerText = `[${p.name}] Insurance 가입 완료!`;
+            }
+            
+            document.getElementById('btn-insurance').style.display = 'none';
+        }
+
+        function checkAceRequirementOrProceed() {
+            if (currentTurnPlayerIndex >= players.length) {
+                startDealerTurn();
+                return;
+            }
+
+            const p = players[currentTurnPlayerIndex];
+            const currentHand = p.hands[currentHandIndex];
+
+            if (p.status[currentHandIndex] === 'bust') {
+                nextHandOrPlayer();
+                return;
+            }
+
+            let unassignedAce = currentHand.find(card => card.rank === 'A' && card.assignedAceValue === undefined);
+
+            if (unassignedAce) {
+                renderBoard(true);
+                document.getElementById('action-buttons').classList.add('hidden');
+                document.getElementById('ace-buttons').classList.remove('hidden');
+                document.getElementById('message-box').innerText = 
+                    `[${p.name}] Ace 카드가 나왔습니다! 1 또는 11 중 가치를 선택하세요.`;
+                return;
+            }
+
+            if (p.isDoubled[currentHandIndex]) {
+                let score = calculateScore(currentHand);
+                if (score > 21) {
+                    p.status[currentHandIndex] = 'bust';
+                    renderBoard(true);
+                    document.getElementById('message-box').innerHTML = 
+                        `<span class="text-red-400 font-extrabold">💥 [${p.name}] 더블 다운 버스트(BURST)!</span>`;
+                } else {
+                    renderBoard(true);
+                    document.getElementById('message-box').innerText = `[${p.name}] 더블 다운 카드 지급 완료 (자동 Turn 종료)`;
+                }
+                setTimeout(() => {
+                    nextHandOrPlayer();
+                }, 500);
+                return;
+            }
+
+            let score = calculateScore(currentHand);
+            if (score > 21) {
+                p.status[currentHandIndex] = 'bust';
+                renderBoard(true);
+                document.getElementById('action-buttons').classList.add('hidden');
+                document.getElementById('ace-buttons').classList.add('hidden');
+                document.getElementById('message-box').innerHTML = 
+                    `<span class="text-red-400 font-extrabold">💥 [${p.name}] 합계 ${score}점 - BURST!</span>`;
+                
+                setTimeout(() => {
+                    nextHandOrPlayer();
+                }, 500);
+                return;
+            } else if (score === 21 && currentHand.length === 2) {
+                p.status[currentHandIndex] = 'blackjack';
+                document.getElementById('message-box').innerHTML = 
+                    `<span class="text-amber-300 font-extrabold">✨ [${p.name}] 내츄럴 블랙잭(Blackjack)!</span>`;
+                setTimeout(() => {
+                    nextHandOrPlayer();
+                }, 500);
+                return;
+            }
+
+            renderBoard(true);
+            document.getElementById('ace-buttons').classList.add('hidden');
+            document.getElementById('action-buttons').classList.remove('hidden');
+            document.getElementById('message-box').innerText = `[${p.name}]의 턴입니다. 진행할 행동을 선택하세요.`;
+
+            const btnDouble = document.getElementById('btn-double');
+            if (currentHand.length === 2 && (gameRuleMode === 'free' || p.coins >= p.bets[currentHandIndex])) {
+                btnDouble.style.display = 'inline-block';
+            } else {
+                btnDouble.style.display = 'none';
+            }
+
+            const btnSplit = document.getElementById('btn-split');
+            if (currentHand.length === 2 && 
+                getCardValueCheck(currentHand[0]) === getCardValueCheck(currentHand[1]) && 
+                (gameRuleMode === 'free' || p.coins >= p.bets[currentHandIndex])) {
+                btnSplit.style.display = 'inline-block';
+            } else {
+                btnSplit.style.display = 'none';
+            }
+
+            const btnInsurance = document.getElementById('btn-insurance');
+            if (dealerHand[1] && dealerHand[1].rank === 'A' && !p.insurance && currentHand.length === 2) {
+                btnInsurance.style.display = 'inline-block';
+            } else {
+                btnInsurance.style.display = 'none';
+            }
+        }
+
+        function chooseAce(val) {
+            const p = players[currentTurnPlayerIndex];
+            const currentHand = p.hands[currentHandIndex];
+            let unassignedAce = currentHand.find(card => card.rank === 'A' && card.assignedAceValue === undefined);
+            
+            if (unassignedAce) {
+                unassignedAce.assignedAceValue = val;
+            }
+
+            document.getElementById('ace-buttons').classList.add('hidden');
+            checkAceRequirementOrProceed();
+        }
+
+        function nextHandOrPlayer() {
+            const p = players[currentTurnPlayerIndex];
+            currentHandIndex++;
+            if (currentHandIndex >= p.hands.length) {
+                currentTurnPlayerIndex++;
+                currentHandIndex = 0;
+            }
+            checkAceRequirementOrProceed();
+        }
+
+        function playerHit() {
+            const p = players[currentTurnPlayerIndex];
+            document.getElementById('action-buttons').classList.add('hidden');
+            document.getElementById('message-box').innerText = "카드를 추가로 분배 중...";
+
+            setTimeout(() => {
+                p.hands[currentHandIndex].push(deck.pop());
+                checkAceRequirementOrProceed();
+            }, 500);
+        }
+
+        function playerStand() {
+            nextHandOrPlayer();
+        }
+
+        function playerDouble() {
+            const p = players[currentTurnPlayerIndex];
+            const currentBet = p.bets[currentHandIndex];
+
+            if (gameRuleMode === 'bet') {
+                p.coins -= currentBet;
+                p.bets[currentHandIndex] *= 2;
+            }
+            p.isDoubled[currentHandIndex] = true;
+
+            document.getElementById('action-buttons').classList.add('hidden');
+            document.getElementById('message-box').innerText = "더블 다운! 추가 카드 1장을 분배합니다...";
+
+            setTimeout(() => {
+                p.hands[currentHandIndex].push(deck.pop());
+                checkAceRequirementOrProceed();
+            }, 500);
+        }
+
+        function playerSplit() {
+            const p = players[currentTurnPlayerIndex];
+            const hand = p.hands[currentHandIndex];
+            const currentBet = p.bets[currentHandIndex];
+
+            if (gameRuleMode === 'bet') {
+                p.coins -= currentBet;
+            }
+
+            const card1 = hand[0];
+            const card2 = hand[1];
+
+            p.hands[currentHandIndex] = [card1, deck.pop()];
+            p.hands.splice(currentHandIndex + 1, 0, [card2, deck.pop()]);
+            p.bets.splice(currentHandIndex + 1, 0, currentBet);
+            p.isDoubled.splice(currentHandIndex + 1, 0, false);
+            p.status.splice(currentHandIndex + 1, 0, 'playing');
+
+            checkAceRequirementOrProceed();
+        }
+
+        // Phase 3: Dealer Turn & Payouts
+        function startDealerTurn() {
+            document.getElementById('action-panel').classList.add('hidden');
+            document.getElementById('message-box').innerText = "딜러가 숨겨진 카드를 공개합니다...";
+
+            setTimeout(() => {
+                renderBoard(false);
+                
+                let dealerLoop = setInterval(() => {
+                    let dealerScore = calculateScore(dealerHand);
+                    if (dealerScore <= 16) {
+                        document.getElementById('message-box').innerText = "딜러가 16 이하이므로 카드를 더 받습니다...";
+                        setTimeout(() => {
+                            dealerHand.push(deck.pop());
+                            renderBoard(false);
+                        }, 500);
+                    } else {
+                        clearInterval(dealerLoop);
+                        setTimeout(determineWinnersAndPayouts, 500);
+                    }
+                }, 800);
+            }, 500);
+        }
+
+        function determineWinnersAndPayouts() {
+            isGameOver = true;
+            renderBoard(false);
+            const dealerScore = calculateScore(dealerHand);
+            const dealerBust = dealerScore > 21;
+            const dealerBlackjack = dealerHand.length === 2 && dealerScore === 21;
+
+            let summaryHtml = "";
+
+            players.forEach((p, pIdx) => {
+                let playerSummary = `<div class="mb-1"><strong>[${p.name}]</strong> `;
+
+                p.hands.forEach((hand, hIdx) => {
+                    const score = calculateScore(hand);
+                    const bet = p.bets[hIdx];
+                    const subLabel = p.hands.length > 1 ? `패${hIdx + 1}: ` : '';
+
+                    if (dealerBlackjack && p.insurance) {
+                        if (gameRuleMode === 'bet') {
+                            p.coins += p.insurance * 3;
+                            playerSummary += `<span class="text-blue-400">[Insurance 성공 +${p.insurance * 2}🪙]</span> `;
+                        } else {
+                            playerSummary += `<span class="text-blue-400">[Insurance 성공]</span> `;
+                        }
+                    }
+
+                    if (gameRuleMode === 'free') {
+                        if (p.status[hIdx] === 'bust' || score > 21) {
+                            playerSummary += `${subLabel}<span class="text-red-400">버스트 패배 ❌</span> `;
+                        } else if (p.status[hIdx] === 'blackjack') {
+                            playerSummary += `${subLabel}<span class="text-amber-300 font-extrabold">블랙잭 승리! ✨</span> `;
+                        } else if (dealerBust || score > dealerScore) {
+                            playerSummary += `${subLabel}<span class="text-emerald-400">승리! 🎉</span> `;
+                        } else if (score < dealerScore) {
+                            playerSummary += `${subLabel}<span class="text-red-400">패배 ❌</span> `;
+                        } else {
+                            playerSummary += `${subLabel}<span class="text-gray-300">무승부 🤝</span> `;
+                        }
+                    } else {
+                        if (p.status[hIdx] === 'bust' || score > 21) {
+                            playerSummary += `${subLabel}<span class="text-red-400">버스트 패배 (-${bet}🪙)</span> `;
+                        } else if (p.status[hIdx] === 'blackjack') {
+                            const winCoins = Math.floor(bet * 2.5);
+                            p.coins += winCoins;
+                            playerSummary += `${subLabel}<span class="text-amber-300 font-extrabold">블랙잭 승리! (+${Math.floor(bet * 1.5)}🪙)</span> `;
+                        } else if (dealerBust) {
+                            p.coins += bet * 2;
+                            playerSummary += `${subLabel}<span class="text-emerald-400">딜러 버스트 승리! (+${bet}🪙)</span> `;
+                        } else if (score > dealerScore) {
+                            p.coins += bet * 2;
+                            playerSummary += `${subLabel}<span class="text-emerald-400">승리! (+${bet}🪙)</span> `;
+                        } else if (score < dealerScore) {
+                            playerSummary += `${subLabel}<span class="text-red-400">패배 (-${bet}🪙)</span> `;
+                        } else {
+                            p.coins += bet;
+                            playerSummary += `${subLabel}<span class="text-gray-300">무승부 (보존)</span> `;
+                        }
+                    }
+                });
+
+                if (gameRuleMode === 'bet') {
+                    playerSummary += ` ➡️ 남은 코인: <span class="text-amber-300 font-bold">${p.coins}🪙</span></div>`;
+                } else {
+                    playerSummary += `</div>`;
+                }
+                summaryHtml += playerSummary;
+            });
+
+            document.getElementById('message-box').innerHTML = summaryHtml;
+            document.getElementById('next-round-container').classList.remove('hidden');
+
+            if (gameRuleMode === 'bet') {
+                for (let i = 0; i < players.length; i++) {
+                    if (players[i].coins <= 0) {
+                        setTimeout(() => {
+                            triggerGameOver(i);
+                        }, 1200);
+                        break;
+                    }
+                }
+            }
+        }
+
+        function renderBoard(hideDealerCard = true) {
+            const dealerContainer = document.getElementById('dealer-cards');
+            dealerContainer.innerHTML = '';
+            
+            dealerHand.forEach((card, idx) => {
+                if (idx === 0 && hideDealerCard) {
+                    dealerContainer.innerHTML += `<div class="playing-card back">?</div>`;
+                } else {
+                    let isRed = ['♥', '◆'].includes(card.suit);
+                    dealerContainer.innerHTML += `
+                        <div class="playing-card ${isRed ? 'red' : ''}">
+                            <div>${card.rank}</div>
+                            <div style="font-size:1.1rem; text-align:center;">${card.suit}</div>
+                            <div style="text-align:right;">${card.rank}</div>
+                        </div>`;
+                }
+            });
+
+            document.getElementById('dealer-score').innerText = hideDealerCard ? `합계: ?` : `합계: ${calculateScore(dealerHand)}`;
+
+            const grid = document.getElementById('players-grid');
+            grid.innerHTML = '';
+
+            players.forEach((p, pIdx) => {
+                let boxClass = "bg-black/40 border border-white/10 rounded-xl p-3 text-center transition-all";
+                if (!isGameOver && pIdx === currentTurnPlayerIndex && document.getElementById('betting-panel').classList.contains('hidden')) {
+                    boxClass += " active-turn";
+                }
+
+                let handsHtml = '';
+                p.hands.forEach((hand, hIdx) => {
+                    let score = hand.length > 0 ? calculateScore(hand) : 0;
+                    let cardsHtml = '';
+                    
+                    hand.forEach(card => {
+                        let isRed = ['♥', '◆'].includes(card.suit);
+                        cardsHtml += `
+                            <div class="playing-card ${isRed ? 'red' : ''}">
+                                <div>${card.rank}</div>
+                                <div style="font-size:1.1rem; text-align:center;">${card.suit}</div>
+                                <div style="text-align:right;">${card.rank}</div>
+                            </div>`;
+                    });
+
+                    let subLabel = p.hands.length > 1 ? `(패 ${hIdx + 1}) ` : '';
+                    let statusLabel = '';
+                    if (p.status[hIdx] === 'bust') {
+                        statusLabel = ' <span class="text-red-500 font-extrabold">[BURST]</span>';
+                    } else if (p.isDoubled[hIdx]) {
+                        statusLabel = ' <span class="text-amber-400 font-bold">[DOUBLE]</span>';
+                    }
+
+                    let chipBadge = gameRuleMode === 'bet' && p.bets[hIdx] !== undefined ? 
+                        `<span class="bet-chip-badge ml-1">🪙 ${p.bets[hIdx]}</span>` : '';
+
+                    handsHtml += `
+                        <div class="my-1">
+                            <div class="text-xs text-gray-300 font-semibold mb-1 flex items-center justify-center gap-1 flex-wrap">
+                                <span>${subLabel}합계: <span class="text-amber-300 font-bold">${score}</span></span>
+                                ${chipBadge}
+                                ${statusLabel}
+                            </div>
+                            <div class="flex justify-center flex-wrap gap-1.5 min-h-[68px]">${cardsHtml}</div>
+                        </div>`;
+                });
+
+                let coinDisplayHeader = gameRuleMode === 'bet' ? 
+                    `<span class="text-xs bg-amber-500/20 text-amber-300 px-2 py-0.5 rounded border border-amber-500/30 font-bold">🪙 ${p.coins}</span>` :
+                    `<span class="text-xs bg-emerald-500/20 text-emerald-300 px-2 py-0.5 rounded border border-emerald-500/30 font-bold">자유 모드</span>`;
+
+                if (selectedUiMode === 'mobile') {
+                    grid.innerHTML += `
+                        <div class="${boxClass} flex items-center justify-between gap-3 text-left">
+                            <div class="min-w-[100px]">
+                                <h4 class="font-bold text-amber-400 text-sm">${p.name}</h4>
+                                <div class="text-xs text-gray-300 mt-1">${coinDisplayHeader}</div>
+                            </div>
+                            <div class="flex-grow text-right">${handsHtml}</div>
+                        </div>`;
+                } else {
+                    grid.innerHTML += `
+                        <div class="${boxClass}">
+                            <div class="flex justify-between items-center mb-1 pb-1 border-b border-white/10">
+                                <h4 class="font-bold text-amber-400 text-sm">${p.name}</h4>
+                                ${coinDisplayHeader}
+                            </div>
+                            ${handsHtml}
+                        </div>`;
+                }
+            });
+        }
+    </script>
+</body>
+</html>
